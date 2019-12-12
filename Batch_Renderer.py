@@ -23,6 +23,9 @@ class Batch_Renderer:
         self.train_x =  np.empty( (self.batch_size,) + self.shape, dtype=np.uint8 )
         self.mask_x =  np.empty( (self.batch_size,) + self.shape[:2], dtype= bool)
         self.obj_bb = np.empty((self.batch_size,4), dtype=np.uint16)
+        self.gen_ae = kw['gen_data_for_ae']
+        self.ae_x = kw['ae_train_x']
+        self.ae_y = kw['ae_train_y']
         self.renderer = meshrenderer_phong.Renderer(self._kw['cad_model'], samples=1, vertex_tmp_store_folder='.', clamp=False, vertex_scale=1.0)
 
 
@@ -106,7 +109,17 @@ class Batch_Renderer:
                     file_name = self._kw['target_loc']+str(count + i)+".jpg"
                     cv2.imwrite(file_name, img)
                     x, y, w, h = obj_bb[i]
-                    csv_writer.writerow([file_name, x,y,x+w,y+h,'object'])
+                    csv_writer.writerow([file_name, x, y, x + w, y + h, 'object'])
+                    #write for autoencoder
+                    if self.gen_ae:
+                        crop_img = img[y:y+h, x:x+w]
+                        crop_img_ren = self.train_x[i][y:y+h, x:x+w]
+                        img_num = (count + i)
+                        crop_file_x = self.ae_x+str(img_num) + ".jpg"
+                        crop_file_y = self.ae_y+str(img_num) + ".jpg"
+                        cv2.imwrite(crop_file_x, crop_img)
+                        cv2.imwrite(crop_file_y, crop_img_ren)
+
                     if self._kw['show_output']:
                         img = cv.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
                         cv2.imwrite(self._kw['show_output_dir'] + str(count + i) + ".jpg", img)
@@ -131,11 +144,15 @@ if __name__ == "__main__" :
           'clip_near'       : 10,
           'clip_far'        : 50,
           'K'               : '[[572.4114, 0.0, 325.2611], [0.0, 573.57043, 242.04899], [0.0, 0.0, 1.0]]',
-          'batch_size'      : 2,
+          'batch_size'      : 200,
           'show_output'     : True,
           'show_output_dir' : '/home/sid/thesis/dummy/output/',
-          'target_loc'      : '/home/sid/thesis/dataset/for_retinanet/',
-          'no_of_samples'   : 20}
+          'target_loc'      : '/home/sid/thesis/dummy/',
+          'no_of_samples'   : 800,
+          'gen_data_for_ae' : True,
+          'ae_train_x'      : '/home/sid/thesis/dummy/ae_train/x/',
+          'ae_train_y'      : '/home/sid/thesis/dummy/ae_train/y/',
+          }
 
     batch_renderer = Batch_Renderer(kw)
     batch_renderer.process()
